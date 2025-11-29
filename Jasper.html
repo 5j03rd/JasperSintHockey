@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jasper's Strafcorner Uitdaging (V8 - Met 2s Pauze)</title>
+    <title>Jasper's Strafcorner Uitdaging (V9 - Jasper Gezicht)</title>
     <style>
         :root {
             --goal-width: 450px;
-            --keeper-width: 100px;
-            --keeper-height: 80px;
+            /* Pas eventueel de breedte en hoogte van de keeper aan voor het gezicht */
+            --keeper-width: 80px;  /* Iets kleiner voor alleen een gezicht */
+            --keeper-height: 80px; /* Iets kleiner voor alleen een gezicht */
             --ball-size: 20px;
         }
 
@@ -71,8 +72,14 @@
             position: absolute;
             bottom: 5px; 
             left: calc(50% - (var(--keeper-width) / 2));
-            background-color: #00897b; 
-            border-radius: 5px;
+            background-color: transparent; /* Geen achtergrondkleur meer */
+            border-radius: 50%; /* Maak het rond, past beter bij een gezicht */
+            /* BEGIN AANPASSING VOOR GEZICHT VAN JASPER */
+            background-image: url('https://5j03rd.github.io/JasperSintHockey/jasper_gezicht.png'); /* <--- PLAK HIER DE URL VAN JASPER'S GEZICHT */
+            background-size: cover; /* Zorgt dat het gezicht de hele cirkel vult */
+            background-position: center; /* Centreert het gezicht */
+            background-repeat: no-repeat;
+            /* EINDE AANPASSING */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -83,8 +90,9 @@
             user-select: none;
             z-index: 10;
         }
+        /* Verwijder de "JASPER" tekst (of verander deze als u wilt) */
         #keeper::before {
-            content: 'JASPER';
+            content: ''; /* Leegmaken of veranderen naar iets anders */
         }
 
         #ball {
@@ -327,7 +335,6 @@
         
         function unpackGift() {
             endMessage.textContent = 'Dit is het einde van het spel...';
-            // De tekst van het cadeau is aangepast om te verwijzen naar de afbeelding of een generieke verrassing.
             finalScore.innerHTML = '... pak je surprise dus maar uit, heel snel! 🥳'; 
             finalScore.style.color = '#ff6f00'; 
             
@@ -347,7 +354,6 @@
         }
 
         function executeShot(randomShotPosition_px) {
-            // Dit is de code die NA de 2 seconden vertraging wordt uitgevoerd
             
             ball.style.left = `${randomShotPosition_px + (varToPx('--ball-size') / 2)}px`;
             ball.style.opacity = '1';
