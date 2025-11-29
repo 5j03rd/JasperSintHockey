@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jasper's Strafcorner Uitdaging (V8 - Met 2s Pauze)</title>
+    <style>
+        :root {
+            --goal-width: 450px;
+            --keeper-width: 100px;
+            --keeper-height: 80px;
+            --ball-size: 20px;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            background-color: #e0f7fa;
+            margin: 0;
+            padding: 20px 10px;
+        }
+        .game-container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            text-align: center;
+            max-width: 700px;
+            width: 100%;
+        }
+        h1 {
+            color: #00796b;
+            margin-bottom: 10px;
+        }
+        .instructions {
+            color: #424242;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        /* --- Veld & Doel Layout (Game Screen) --- */
+        .hockey-field {
+            background-color: #7cb342; /* Groen veld */
+            width: 100%;
+            max-width: var(--goal-width);
+            height: 200px; 
+            margin: 20px auto;
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+            touch-action: none; /* ESSENTIEEL voor mobiel vegen */
+            cursor: grab;
+        }
+
+        .goal {
+            width: 100%;
+            height: 100%;
+            border: 5px solid #424242;
+            border-radius: 5px;
+            box-sizing: border-box;
+            position: relative;
+        }
+        
+        #keeper {
+            width: var(--keeper-width);
+            height: var(--keeper-height);
+            position: absolute;
+            bottom: 5px; 
+            left: calc(50% - (var(--keeper-width) / 2));
+            background-color: #00897b; 
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9em;
+            color: white;
+            font-weight: bold;
+            transition: left 0.05s linear; 
+            user-select: none;
+            z-index: 10;
+        }
+        #keeper::before {
+            content: 'JASPER';
+        }
+
+        #ball {
+            width: var(--ball-size);
+            height: var(--ball-size);
+            background-color: #ffeb3b; 
+            border-radius: 50%;
+            position: absolute;
+            bottom: 5px; 
+            left: 50%;
+            opacity: 0;
+            transform: translateX(-50%);
+            z-index: 5;
+        }
+        
+        /* Animatie voor de bal */
+        @keyframes shoot {
+            0% { 
+                bottom: 180px; 
+                opacity: 1; 
+                transform: translateX(-50%) scale(1.5);
+            }
+            100% { 
+                bottom: 5px; 
+                opacity: 1; 
+                transform: translateX(-50%) scale(1);
+            }
+        }
+        
+        .animation-running {
+            animation: shoot 0.4s ease-out forwards;
+        }
+
+        .score-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-top: 1px solid #eee;
+            margin-top: 10px;
+        }
+
+        #round-info, #score-info, #finalScore {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #00796b;
+        }
+
+        #message {
+            margin: 15px 0;
+            font-size: 1.1em;
+            font-weight: bold;
+            min-height: 25px;
+        }
+
+        /* --- Eindscherm (End Screen) --- */
+        #endScreen {
+            padding: 30px;
+            border: 3px dashed #ff9800;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none; 
+        }
+        #endMessage {
+            font-size: 2em;
+            color: #ff6f00;
+            margin-bottom: 10px;
+        }
+        #giftButton, #resetButton {
+            background-color: #00796b;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 15px 5px 0;
+        }
+        #giftButton { background-color: #ff9800; }
+        #giftButton:hover { background-color: #f57c00; }
+        #resetEndButton { display: none; background-color: #4CAF50; }
+        #resetEndButton:hover { background-color: #388E3C; }
+        #shootButton:disabled { background-color: #b2dfdb; cursor: not-allowed; } 
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🥅 Jasper's Strafcorner Uitdaging 🥅</h1>
+        <p class="instructions">
+            Beweeg **Jasper** door te slepen/vegen over het groene veld. Je moet **vegen terwijl de bal komt!**
+        </p>
+
+        <div id="gameArea">
+            <div class="score-info">
+                <span id="round-info">Strafcorner: 1 van 5</span>
+                <span id="score-info">Gestopt: 0</span>
+            </div>
+
+            <div class="hockey-field" id="hockeyField">
+                <div class="goal">
+                    <div id="keeper"></div>
+                </div>
+                <div id="ball"></div>
+            </div>
+
+            <div id="message">Druk op 'Schiet!' voor de eerste strafcorner. Veeg met Jasper!</div>
+            
+            <button id="shootButton">Schiet!</button>
+        </div>
+        <div id="endScreen" style="display: none;">
+            <h2 id="endMessage"></h2>
+            <p id="finalScore"></p>
+            <button id="giftButton" style="display: none;"></button>
+            <button id="resetEndButton" style="display: none;">Opnieuw Spelen</button>
+        </div>
+        </div>
+
+    <script>
+        const hockeyField = document.getElementById('hockeyField');
+        const keeper = document.getElementById('keeper');
+        const ball = document.getElementById('ball');
+        const shootButton = document.getElementById('shootButton');
+        const resetEndButton = document.getElementById('resetEndButton');
+        const giftButton = document.getElementById('giftButton');
+        const messageDiv = document.getElementById('message');
+        const roundInfoSpan = document.getElementById('round-info');
+        const scoreInfoSpan = document.getElementById('score-info');
+        const gameArea = document.getElementById('gameArea');
+        const endScreen = document.getElementById('endScreen');
+        const endMessage = document.getElementById('endMessage');
+        const finalScore = document.getElementById('finalScore');
+
+        const totalRounds = 5;
+        const requiredSaves = 3;
+        const shootDelayMs = 2000; // 2 seconden vertraging
+        let currentRound = 0;
+        let saves = 0;
+        let isShooting = false;
+        
+        let isDragging = false;
+        let startClientX = 0;
+        let keeperStartX = 0; 
+        
+        // --- Bewegingslogica (Slepen / Swipen) ---
+
+        const getBounds = () => {
+            const fieldRect = hockeyField.getBoundingClientRect();
+            const keeperWidth = parseFloat(getComputedStyle(keeper).width); 
+            const goalBorder = 5; 
+            
+            const minLeft = goalBorder;
+            const maxLeft = fieldRect.width - keeperWidth - goalBorder;
+            return { minLeft, maxLeft, fieldRect };
+        };
+
+        const startDrag = (e) => {
+            if (currentRound >= totalRounds) return;
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            if (!clientX) return;
+
+            e.preventDefault(); 
+            isDragging = true;
+            
+            startClientX = clientX;
+            keeperStartX = parseFloat(window.getComputedStyle(keeper).left); 
+            
+            hockeyField.style.cursor = 'grabbing';
+        };
+
+        const onDrag = (e) => {
+            if (!isDragging) return;
+            e.preventDefault(); 
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            if (!clientX) return;
+
+            const deltaX = clientX - startClientX;
+            const bounds = getBounds();
+            
+            let newLeft = keeperStartX + deltaX;
+
+            if (newLeft < bounds.minLeft) newLeft = bounds.minLeft;
+            if (newLeft > bounds.maxLeft) newLeft = bounds.maxLeft;
+
+            keeper.style.left = `${newLeft}px`;
+        };
+
+        const endDrag = () => {
+            isDragging = false;
+            hockeyField.style.cursor = 'grab';
+        };
+
+        hockeyField.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', onDrag);
+        document.addEventListener('mouseup', endDrag);
+
+        hockeyField.addEventListener('touchstart', startDrag, { passive: false });
+        document.addEventListener('touchmove', onDrag, { passive: false });
+        document.addEventListener('touchend', endDrag);
+
+        // --- Spel Logica ---
+
+        function updateDisplay() {
+            if (currentRound < totalRounds) {
+                roundInfoSpan.textContent = `Strafcorner: ${currentRound + 1} van ${totalRounds}`;
+                scoreInfoSpan.textContent = `Gestopt: ${saves}`;
+                shootButton.style.display = 'block';
+                shootButton.disabled = isShooting; 
+            } else {
+                endGame();
+            }
+        }
+        
+        function endGame() {
+            gameArea.style.display = 'none'; 
+            endScreen.style.display = 'block'; 
+
+            if (saves >= requiredSaves) {
+                showWinScreen();
+            } else {
+                showLoseScreen();
+            }
+        }
+
+        function showWinScreen() {
+            endMessage.textContent = 'GEFELICITEERD, JASPER! 🏆';
+            finalScore.textContent = `${saves} van de ${totalRounds} strafcorners gestopt is heel goed. De Sint vraagt zich af hoe jij dat toch doet!`;
+            finalScore.style.color = '#00796b';
+            
+            giftButton.style.display = 'block';
+            giftButton.textContent = '🎁 VERDER';
+            
+            giftButton.removeEventListener('click', unpackGift); 
+            giftButton.addEventListener('click', unpackGift);
+            
+            resetEndButton.style.display = 'none';
+        }
+        
+        function unpackGift() {
+            endMessage.textContent = 'Dit is het einde van het spel...';
+            // De tekst van het cadeau is aangepast om te verwijzen naar de afbeelding of een generieke verrassing.
+            finalScore.innerHTML = '... pak je surprise dus maar uit, heel snel! 🥳'; 
+            finalScore.style.color = '#ff6f00'; 
+            
+            giftButton.style.display = 'none';
+            resetEndButton.style.display = 'block';
+            resetEndButton.textContent = 'Opnieuw Spelen';
+        }
+
+        function showLoseScreen() {
+            endMessage.textContent = 'OEF! Net niet, Jasper.';
+            finalScore.textContent = `Helaas, je hebt ${saves} van de ${totalRounds} strafcorners gestopt. Je hebt ${requiredSaves} nodig om te winnen. Probeer het opnieuw!`;
+            finalScore.style.color = '#d32f2f';
+            
+            giftButton.style.display = 'none';
+            resetEndButton.style.display = 'block';
+            resetEndButton.textContent = 'Opnieuw Proberen';
+        }
+
+        function executeShot(randomShotPosition_px) {
+            // Dit is de code die NA de 2 seconden vertraging wordt uitgevoerd
+            
+            ball.style.left = `${randomShotPosition_px + (varToPx('--ball-size') / 2)}px`;
+            ball.style.opacity = '1';
+
+            setTimeout(() => {
+                ball.classList.add('animation-running');
+            }, 50);
+
+            // Controleer de keeper na de animatie
+            setTimeout(() => {
+                checkSave(randomShotPosition_px);
+                isShooting = false; 
+                updateDisplay(); 
+            }, 400); 
+        }
+
+        function shootBall() {
+            if (isShooting || currentRound >= totalRounds) return;
+
+            isShooting = true;
+            updateDisplay(); // Schakel de knop uit
+
+            messageDiv.textContent = 'De bal komt over 2 seconden! Bereid je voor!';
+            messageDiv.style.color = '#ff6f00'; 
+            
+            const bounds = getBounds();
+            const keeperWidth = varToPx('--keeper-width');
+            const ballSize = varToPx('--ball-size');
+            
+            const minBallLeft = bounds.minLeft - (ballSize / 2);
+            const maxBallLeft = bounds.maxLeft + keeperWidth - (ballSize / 2);
+            
+            const randomShotPosition_px = Math.random() * (maxBallLeft - minBallLeft) + minBallLeft;
+
+            // PAUZE VAN 2 SECONDEN (2000ms)
+            setTimeout(() => {
+                messageDiv.textContent = 'DE BAL KOMT NU! BEWEEG JASPER!';
+                executeShot(randomShotPosition_px);
+            }, shootDelayMs);
+        }
+
+        function checkSave(ballLeft_px) {
+            
+            const keeperWidth = varToPx('--keeper-width');
+            const ballSize = varToPx('--ball-size');
+            
+            const keeperLeft_px = parseFloat(window.getComputedStyle(keeper).left);
+
+            const keeperRight_px = keeperLeft_px + keeperWidth;
+            const ballRight_px = ballLeft_px + ballSize;
+            
+            const isSave = ballRight_px >= keeperLeft_px && ballLeft_px <= keeperRight_px;
+
+            if (isSave) {
+                saves++;
+                messageDiv.textContent = 'FANTASTISCH! Jasper stopt de strafcorner!';
+                messageDiv.style.color = '#2e7d32'; 
+            } else {
+                messageDiv.textContent = 'DOELPUNT! De bal gaat erin!';
+                messageDiv.style.color = '#d32f2f'; 
+            }
+
+            currentRound++;
+            
+            ball.classList.remove('animation-running');
+            ball.style.opacity = '0'; 
+        }
+        
+        function varToPx(variable) {
+            const val = getComputedStyle(document.documentElement).getPropertyValue(variable).trim();
+            return parseFloat(val.replace('px', ''));
+        }
+
+        function startGame() {
+            currentRound = 0;
+            saves = 0;
+            isShooting = false;
+            
+            gameArea.style.display = 'block';
+            endScreen.style.display = 'none';
+
+            const bounds = getBounds();
+            const keeperWidth = varToPx('--keeper-width');
+            const middlePosition = (bounds.maxLeft - keeperWidth + bounds.minLeft) / 2;
+            keeper.style.left = `${middlePosition}px`;
+            
+            messageDiv.style.color = '#3f51b5';
+            messageDiv.textContent = 'Druk op "Schiet!" voor de eerste strafcorner. Veeg met Jasper!';
+            
+            shootButton.textContent = 'Schiet!';
+            shootButton.style.display = 'block';
+            resetEndButton.style.display = 'none';
+
+            updateDisplay();
+        }
+
+        shootButton.addEventListener('click', shootBall);
+        resetEndButton.addEventListener('click', startGame);
+
+        window.addEventListener('resize', startGame); 
+        startGame();
+
+    </script>
+</body>
+</html>
